@@ -1,5 +1,12 @@
 import type { Skill } from '../types';
-import { CATEGORY_COLORS, CATEGORY_LABELS } from '../constants';
+import { CATEGORY_LABELS } from '../constants';
+
+const SKILL_COLORS: Record<string, string> = {
+  move: 'var(--skill-move)',
+  combat: 'var(--skill-combat)',
+  curse: 'var(--skill-curse)',
+  defense: 'var(--skill-defense)',
+};
 
 interface Props {
   skill: Skill;
@@ -10,18 +17,24 @@ interface Props {
 }
 
 export default function SkillCard({ skill, selected, onClick, compact, disabled }: Props) {
-  const color = CATEGORY_COLORS[skill.category];
+  const color = SKILL_COLORS[skill.category];
   const label = CATEGORY_LABELS[skill.category];
 
   if (compact) {
     return (
       <div
         onClick={!disabled ? onClick : undefined}
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer select-none ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80'}`}
-        style={{ backgroundColor: color + '33', border: `1px solid ${color}`, color }}
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold select-none transition-opacity"
+        style={{
+          background: `color-mix(in srgb, ${color} 15%, transparent)`,
+          border: `1px solid color-mix(in srgb, ${color} 40%, transparent)`,
+          color,
+          opacity: disabled ? 0.4 : 1,
+          cursor: disabled ? 'not-allowed' : onClick ? 'pointer' : 'default',
+        }}
         title={skill.descriptions[skill.level]}
       >
-        <span style={{ color }}>Lv{skill.level}</span>
+        <span className="opacity-70">Lv{skill.level}</span>
         <span>{skill.name.ja}</span>
       </div>
     );
@@ -30,26 +43,52 @@ export default function SkillCard({ skill, selected, onClick, compact, disabled 
   return (
     <div
       onClick={!disabled ? onClick : undefined}
-      className={`rounded-xl overflow-hidden select-none transition-all ${onClick && !disabled ? 'cursor-pointer hover:scale-105' : ''} ${selected ? 'ring-2 ring-yellow-400 scale-105' : ''} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-      style={{ border: `2px solid ${selected ? '#facc15' : color}` }}
+      className="rounded-xl overflow-hidden select-none transition-all duration-150"
+      style={{
+        background: 'var(--bg-elevated)',
+        border: selected
+          ? `2px solid var(--accent)`
+          : `1px solid color-mix(in srgb, ${color} 30%, var(--border))`,
+        opacity: disabled ? 0.45 : 1,
+        cursor: disabled ? 'not-allowed' : onClick ? 'pointer' : 'default',
+        transform: selected ? 'scale(1.02)' : undefined,
+        boxShadow: selected ? '0 0 16px rgba(228,184,75,0.2)' : undefined,
+      }}
     >
-      <div className="px-3 py-1 text-xs font-bold text-white" style={{ backgroundColor: color }}>
-        {label} · {skill.name.en}
+      {/* Header band */}
+      <div
+        className="px-3 py-1.5 flex items-center justify-between"
+        style={{ background: `color-mix(in srgb, ${color} 20%, transparent)`, borderBottom: `1px solid color-mix(in srgb, ${color} 20%, transparent)` }}
+      >
+        <span className="text-xs font-semibold uppercase tracking-widest" style={{ color, fontSize: '0.65rem' }}>
+          {label}
+        </span>
+        <span className="text-xs opacity-60" style={{ color, fontSize: '0.65rem' }}>
+          {skill.name.en}
+        </span>
       </div>
-      <div className="bg-gray-800 p-3">
+
+      {/* Body */}
+      <div className="p-3">
         <div className="flex items-center justify-between mb-2">
-          <span className="font-bold text-white">{skill.name.ja}</span>
-          <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: color + '44', color }}>
+          <span className="font-bold text-sm" style={{ color: 'var(--text-1)' }}>{skill.name.ja}</span>
+          <span
+            className="text-xs px-2 py-0.5 rounded-full font-semibold"
+            style={{ background: `color-mix(in srgb, ${color} 18%, transparent)`, color }}
+          >
             Lv{skill.level}
           </span>
         </div>
-        <p className="text-xs text-gray-300 leading-relaxed">{skill.descriptions[skill.level]}</p>
-        <div className="mt-2 flex gap-1">
+        <p className="text-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
+          {skill.descriptions[skill.level]}
+        </p>
+        {/* Level progress pips */}
+        <div className="flex gap-1.5 mt-3">
           {([1, 2, 3] as const).map(lv => (
             <div
               key={lv}
-              className="flex-1 h-1 rounded-full"
-              style={{ backgroundColor: lv <= skill.level ? color : '#374151' }}
+              className="flex-1 h-0.5 rounded-full transition-colors"
+              style={{ background: lv <= skill.level ? color : 'var(--bg-hover)' }}
             />
           ))}
         </div>

@@ -27,10 +27,10 @@ export const GEM_COLORS: Record<GemType, string> = {
 };
 
 export const CATEGORY_COLORS: Record<SkillCategory, string> = {
-  move: '#3b82f6',
-  combat: '#ef4444',
-  curse: '#a855f7',
-  defense: '#14b8a6',
+  move: '#5b9cf6',
+  combat: '#f07070',
+  curse: '#b87de8',
+  defense: '#3dc9b4',
 };
 
 export const CATEGORY_LABELS: Record<SkillCategory, string> = {

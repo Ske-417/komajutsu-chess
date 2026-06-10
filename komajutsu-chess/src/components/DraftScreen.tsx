@@ -41,7 +41,6 @@ export default function DraftScreen() {
   const humanPicks = humanColor === 'white' ? draft.whitePicks : draft.blackPicks;
   const humanAssignments = humanColor === 'white' ? draft.whiteAssignments : draft.blackAssignments;
 
-  // Build piece list for assignment
   const board = chess.board();
   const humanPieces: Array<{ key: string; type: PieceType; colIndex: number; label: string }> = [];
   const seen = new Map<string, number>();
@@ -64,109 +63,128 @@ export default function DraftScreen() {
   const unassignedPicks = humanPicks.filter(s => !assignedSkills.includes(s));
 
   return (
-    <div className="min-h-screen bg-gray-900 p-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-yellow-400 mb-1">ドラフトフェーズ</h1>
-          <p className="text-gray-400">{statusMessage}</p>
+    <div className="min-h-screen chess-grid-bg" style={{ background: 'var(--bg-base)' }}>
+      <div className="max-w-4xl mx-auto px-4 py-8">
+
+        {/* Header */}
+        <div className="text-center mb-8">
+          <p className="text-xs uppercase tracking-widest mb-2" style={{ color: 'var(--text-3)' }}>
+            {isPickingPhase ? 'PHASE 1' : 'PHASE 2'}
+          </p>
+          <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--text-1)' }}>
+            {isPickingPhase ? 'スキル選択' : 'スキル割り当て'}
+          </h1>
+          <p className="text-sm" style={{ color: 'var(--text-2)' }}>{statusMessage}</p>
         </div>
 
+        {/* Picking Phase */}
         {isPickingPhase && (
-          <div className="space-y-6">
-            {isHumanTurn ? (
-              <>
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-white">手札（{humanPicks.length}/5枚選択）</h2>
-                  <button
-                    onClick={confirmDraftPicks}
-                    disabled={humanPicks.length !== 5}
-                    className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                      humanPicks.length === 5
-                        ? 'bg-yellow-500 text-black hover:bg-yellow-400'
-                        : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                    }`}
-                  >
-                    決定 ({humanPicks.length}/5)
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {humanHand.map((skill, i) => {
-                    const isPicked = humanPicks.includes(skill);
-                    return (
-                      <SkillCard
-                        key={`${skill.id}-${i}`}
-                        skill={skill}
-                        selected={isPicked}
-                        disabled={!isPicked && humanPicks.length >= 5}
-                        onClick={() => {
-                          if (isPicked) return;
-                          selectSkillForDraft(skill);
-                        }}
-                      />
-                    );
-                  })}
-                </div>
-
-                {humanPicks.length > 0 && (
-                  <div>
-                    <h3 className="text-sm text-gray-400 mb-2">選択中のスキル</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {humanPicks.map((s, i) => (
-                        <SkillCard key={i} skill={s} compact />
-                      ))}
-                    </div>
+          isHumanTurn ? (
+            <div className="space-y-6">
+              {/* Progress + confirm */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium" style={{ color: 'var(--text-2)' }}>選択中</span>
+                  <div className="flex gap-1">
+                    {[0,1,2,3,4].map(i => (
+                      <div key={i} className="w-2 h-2 rounded-full transition-colors"
+                        style={{ background: i < humanPicks.length ? 'var(--accent)' : 'var(--bg-hover)' }} />
+                    ))}
                   </div>
-                )}
-              </>
-            ) : (
-              <div className="flex items-center justify-center h-48">
-                <div className="text-center">
-                  <div className="text-4xl mb-4 animate-pulse">🤖</div>
-                  <p className="text-gray-400">Botがスキルを選んでいます...</p>
+                  <span className="text-sm" style={{ color: 'var(--text-3)' }}>{humanPicks.length} / 5</span>
                 </div>
+                <button
+                  onClick={confirmDraftPicks}
+                  disabled={humanPicks.length !== 5}
+                  className="px-5 py-2 rounded-xl text-sm font-semibold transition-all"
+                  style={humanPicks.length === 5 ? {
+                    background: 'var(--accent)', color: '#0a0a14',
+                  } : {
+                    background: 'var(--bg-elevated)', color: 'var(--text-3)',
+                    border: '1px solid var(--border)', cursor: 'not-allowed',
+                  }}
+                >
+                  決定する
+                </button>
               </div>
-            )}
-          </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {humanHand.map((skill, i) => {
+                  const isPicked = humanPicks.includes(skill);
+                  return (
+                    <SkillCard
+                      key={`${skill.id}-${i}`}
+                      skill={skill}
+                      selected={isPicked}
+                      disabled={!isPicked && humanPicks.length >= 5}
+                      onClick={() => { if (!isPicked) selectSkillForDraft(skill); }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-48 rounded-2xl"
+              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+              <div className="text-center">
+                <div className="text-3xl mb-3 animate-pulse" style={{ color: 'var(--text-3)' }}>◌</div>
+                <p className="text-sm" style={{ color: 'var(--text-2)' }}>Botがスキルを選んでいます…</p>
+              </div>
+            </div>
+          )
         )}
 
+        {/* Assigning Phase */}
         {isAssigningPhase && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-white">スキルを駒に割り当て</h2>
+              <p className="text-sm" style={{ color: 'var(--text-2)' }}>
+                {selectedSkill
+                  ? <><span style={{ color: 'var(--accent)' }}>{selectedSkill.name.ja}</span> を割り当てる駒を選択してください</>
+                  : '割り当てるスキルをクリックして選択'}
+              </p>
               <button
                 onClick={confirmAssignments}
-                className="px-4 py-2 rounded-lg font-medium bg-yellow-500 text-black hover:bg-yellow-400 transition-all"
+                className="px-5 py-2 rounded-xl text-sm font-semibold transition-all"
+                style={{ background: 'var(--accent)', color: '#0a0a14' }}
               >
-                ゲーム開始！
+                対戦開始
               </button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Unassigned skills */}
-              <div className="bg-gray-800 rounded-xl p-4">
-                <h3 className="text-sm font-semibold text-gray-300 mb-3">未割り当てスキル（クリックして選択）</h3>
+              {/* Unassigned */}
+              <div className="rounded-2xl p-4" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+                <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--text-3)' }}>
+                  未割り当てスキル
+                </p>
                 <div className="space-y-2">
                   {unassignedPicks.map((skill, i) => (
                     <div
                       key={i}
                       onClick={() => setSelectedSkill(selectedSkill === skill ? null : skill)}
-                      className={`cursor-pointer rounded-lg p-2 transition-all ${selectedSkill === skill ? 'ring-2 ring-yellow-400 bg-gray-700' : 'bg-gray-750 hover:bg-gray-700'}`}
+                      className="cursor-pointer rounded-xl transition-all"
+                      style={selectedSkill === skill ? {
+                        outline: '2px solid var(--accent)',
+                        outlineOffset: '2px',
+                      } : undefined}
                     >
-                      <SkillCard skill={skill} compact />
+                      <SkillCard skill={skill} compact={false} />
                     </div>
                   ))}
                   {unassignedPicks.length === 0 && (
-                    <p className="text-gray-500 text-sm">全スキルが割り当て済みです</p>
+                    <p className="text-sm text-center py-4" style={{ color: 'var(--text-3)' }}>
+                      全スキルが割り当て済みです ✓
+                    </p>
                   )}
                 </div>
               </div>
 
-              {/* Piece assignment */}
-              <div className="bg-gray-800 rounded-xl p-4">
-                <h3 className="text-sm font-semibold text-gray-300 mb-3">
-                  駒スロット{selectedSkill ? `（${selectedSkill.name.ja}を割り当て先を選択）` : ''}
-                </h3>
+              {/* Piece slots */}
+              <div className="rounded-2xl p-4" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+                <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--text-3)' }}>
+                  駒スロット
+                </p>
                 <div className="space-y-2">
                   {humanPieces.map(piece => {
                     const assigned = humanAssignments.get(piece.key) || [];
@@ -176,9 +194,12 @@ export default function DraftScreen() {
                     return (
                       <div
                         key={piece.key}
-                        className={`rounded-lg p-3 flex items-center gap-3 transition-all ${
-                          canAssign ? 'bg-gray-700 cursor-pointer hover:bg-gray-600 ring-1 ring-yellow-500' : 'bg-gray-750'
-                        }`}
+                        className="rounded-xl p-3 flex items-center gap-3 transition-all"
+                        style={{
+                          background: canAssign ? 'var(--bg-hover)' : 'var(--bg-elevated)',
+                          border: canAssign ? '1px solid var(--border-accent)' : '1px solid var(--border)',
+                          cursor: canAssign ? 'pointer' : 'default',
+                        }}
                         onClick={() => {
                           if (canAssign && selectedSkill) {
                             assignSkillToPiece(piece.key, selectedSkill);
@@ -186,19 +207,20 @@ export default function DraftScreen() {
                           }
                         }}
                       >
-                        <span className="text-2xl">{icons[piece.type]}</span>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-white">{piece.label}</span>
-                            <span className="text-xs text-gray-400">({assigned.length}/{maxSlots}スロット)</span>
+                        <span className="text-2xl w-8 text-center">{icons[piece.type]}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-medium" style={{ color: 'var(--text-1)' }}>{piece.label}</span>
+                            <span className="text-xs" style={{ color: 'var(--text-3)' }}>
+                              {assigned.length}/{maxSlots}
+                            </span>
                           </div>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {assigned.map((s, i) => (
-                              <SkillCard key={i} skill={s} compact />
-                            ))}
+                          <div className="flex flex-wrap gap-1">
+                            {assigned.map((s, i) => <SkillCard key={i} skill={s} compact />)}
                             {Array(maxSlots - assigned.length).fill(0).map((_, i) => (
-                              <span key={i} className="text-xs px-2 py-0.5 rounded-full border border-dashed border-gray-600 text-gray-500">
-                                空きスロット
+                              <span key={i} className="text-xs px-2 py-0.5 rounded-full"
+                                style={{ border: '1px dashed var(--border)', color: 'var(--text-3)' }}>
+                                空き
                               </span>
                             ))}
                           </div>

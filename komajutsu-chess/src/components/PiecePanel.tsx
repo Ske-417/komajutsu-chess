@@ -6,6 +6,8 @@ const PIECE_LABELS: Record<PieceType, string> = {
   p: 'ポーン', n: 'ナイト', b: 'ビショップ', r: 'ルーク', q: 'クイーン', k: 'キング',
 };
 
+const EXP_COLORS = ['var(--skill-move)', 'var(--accent)', 'var(--skill-combat)'];
+
 export default function PiecePanel() {
   const selectedSquare = useGameStore(s => s.selectedSquare);
   const pieces = useGameStore(s => s.pieces);
@@ -17,94 +19,124 @@ export default function PiecePanel() {
   const humanColor = botColor === 'white' ? 'black' : 'white';
   const pieceState = selectedSquare ? pieces.get(selectedSquare) : null;
 
-  const expThreshold = pieceState ? (pieceState.level === 1 ? 10 : pieceState.level === 2 ? 30 : 30) : 10;
+  const expThreshold = pieceState ? (pieceState.level === 1 ? 10 : 30) : 10;
   const expBase = pieceState ? (pieceState.level === 1 ? 0 : pieceState.level === 2 ? 10 : 30) : 0;
-  const expProgress = pieceState ? Math.min(1, (pieceState.experience - expBase) / (expThreshold - expBase)) : 0;
+  const expProgress = pieceState
+    ? Math.min(1, (pieceState.experience - expBase) / (expThreshold - expBase))
+    : 0;
+
+  const isHumanTurn = currentTurn === humanColor;
 
   return (
-    <div className="flex flex-col gap-4 h-full">
-      {/* Status */}
-      <div className="bg-gray-800 rounded-xl p-3">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-sm text-gray-400">ターン {turnNumber}</span>
-          <span className={`text-sm font-medium ${currentTurn === humanColor ? 'text-green-400' : 'text-red-400'}`}>
-            {currentTurn === 'white' ? '⬜ 白' : '⬛ 黒'}の番
+    <div className="flex flex-col gap-3">
+      {/* Turn status */}
+      <div className="rounded-xl p-3" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-xs" style={{ color: 'var(--text-3)' }}>ターン {turnNumber}</span>
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
+            style={isHumanTurn ? {
+              background: 'rgba(61,201,180,0.12)',
+              color: 'var(--skill-defense)',
+              border: '1px solid rgba(61,201,180,0.25)',
+            } : {
+              background: 'rgba(240,112,112,0.12)',
+              color: 'var(--skill-combat)',
+              border: '1px solid rgba(240,112,112,0.25)',
+            }}>
+            {currentTurn === 'white' ? '♔ 白' : '♚ 黒'}の番
           </span>
         </div>
-        <p className="text-xs text-gray-300">{statusMessage}</p>
+        <p className="text-xs" style={{ color: 'var(--text-2)' }}>{statusMessage}</p>
       </div>
 
-      {/* Selected piece info */}
-      {pieceState ? (
-        <div className="bg-gray-800 rounded-xl p-4 flex-1 overflow-y-auto">
-          <div className="flex items-center gap-3 mb-4">
-            <span className="text-3xl">{getPieceIcon(pieceState.type, pieceState.color)}</span>
-            <div>
-              <div className="font-bold text-white">{PIECE_LABELS[pieceState.type]}</div>
-              <div className="text-xs text-gray-400">
-                {pieceState.color === 'white' ? '白' : '黒'} ·
-                Lv{pieceState.level} ·
-                {pieceState.isBound && <span className="text-purple-400 ml-1">呪縛中({pieceState.boundTurns}T)</span>}
+      {/* Selected piece */}
+      <div className="rounded-xl overflow-hidden flex-1"
+        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+        {pieceState ? (
+          <div className="p-4">
+            {/* Piece header */}
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-3xl">{getPieceIcon(pieceState.type, pieceState.color)}</span>
+              <div>
+                <div className="font-bold text-sm" style={{ color: 'var(--text-1)' }}>
+                  {PIECE_LABELS[pieceState.type]}
+                  {pieceState.isBound && (
+                    <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded"
+                      style={{ background: 'rgba(184,125,232,0.15)', color: 'var(--skill-curse)' }}>
+                      呪縛 {pieceState.boundTurns}T
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>
+                  {pieceState.color === 'white' ? '白' : '黒'} · Lv{pieceState.level}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* EXP bar */}
-          <div className="mb-4">
-            <div className="flex justify-between text-xs text-gray-400 mb-1">
-              <span>EXP</span>
-              <span>{pieceState.experience} / {expThreshold}</span>
+            {/* EXP bar */}
+            <div className="mb-4">
+              <div className="flex justify-between text-xs mb-1.5" style={{ color: 'var(--text-3)' }}>
+                <span>EXP</span>
+                <span>{pieceState.experience} / {expThreshold}</span>
+              </div>
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--bg-hover)' }}>
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${expProgress * 100}%`, background: EXP_COLORS[Math.min(pieceState.level - 1, 2)] }}
+                />
+              </div>
+              <div className="flex justify-between text-xs mt-1">
+                <span style={{ color: 'var(--text-3)' }}>Lv{pieceState.level}</span>
+                {pieceState.level < 3 && (
+                  <span style={{ color: 'var(--text-3)' }}>Lv{pieceState.level + 1}</span>
+                )}
+              </div>
             </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${expProgress * 100}%`,
-                  backgroundColor: pieceState.level === 1 ? '#3b82f6' : pieceState.level === 2 ? '#f59e0b' : '#ef4444',
-                }}
-              />
-            </div>
-            <div className="flex justify-between text-xs mt-1">
-              <span className="text-gray-500">Lv{pieceState.level}</span>
-              {pieceState.level < 3 && <span className="text-gray-500">Lv{pieceState.level + 1}</span>}
-            </div>
-          </div>
 
-          {/* Slots */}
-          <div className="mb-2">
-            <div className="text-xs text-gray-400 mb-2">
-              スキルスロット ({pieceState.skills.length}/{pieceState.maxSlots})
-            </div>
-            {pieceState.skills.length > 0 ? (
+            {/* Skills */}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest mb-2"
+                style={{ color: 'var(--text-3)' }}>
+                スキル {pieceState.skills.length}/{pieceState.maxSlots}
+              </p>
               <div className="space-y-2">
                 {pieceState.skills.map((skill, i) => (
-                  <SkillCard key={i} skill={skill} compact={false} />
+                  <SkillCard key={i} skill={skill} />
                 ))}
               </div>
-            ) : (
-              <p className="text-gray-500 text-xs">スキルなし</p>
-            )}
-            {/* Empty slots */}
-            {Array(pieceState.maxSlots - pieceState.skills.length).fill(0).map((_, i) => (
-              <div key={i} className="mt-2 border border-dashed border-gray-600 rounded-lg p-3 text-center text-gray-600 text-xs">
-                空きスロット
-              </div>
-            ))}
-          </div>
+              {Array(pieceState.maxSlots - pieceState.skills.length).fill(0).map((_, i) => (
+                <div key={i} className="mt-2 rounded-xl p-3 text-center text-xs"
+                  style={{ border: '1px dashed var(--border)', color: 'var(--text-3)' }}>
+                  空きスロット
+                </div>
+              ))}
+            </div>
 
-          {/* Special states */}
-          {pieceState.armorCharges ? (
-            <div className="mt-2 text-xs text-teal-400">🛡 鎧: {pieceState.armorCharges}回残</div>
-          ) : null}
-          {pieceState.mistStepUses ? (
-            <div className="mt-1 text-xs text-blue-400">✨ 霞歩: {pieceState.mistStepUses}回残</div>
-          ) : null}
-        </div>
-      ) : (
-        <div className="bg-gray-800 rounded-xl p-4 flex-1 flex items-center justify-center">
-          <p className="text-gray-500 text-sm text-center">駒をクリックして詳細を表示</p>
-        </div>
-      )}
+            {/* Special states */}
+            {(pieceState.armorCharges || pieceState.mistStepUses) ? (
+              <div className="mt-3 space-y-1">
+                {pieceState.armorCharges ? (
+                  <div className="text-xs px-2 py-1 rounded-lg"
+                    style={{ background: 'rgba(61,201,180,0.1)', color: 'var(--skill-defense)' }}>
+                    🛡 鎧: {pieceState.armorCharges}回残り
+                  </div>
+                ) : null}
+                {pieceState.mistStepUses ? (
+                  <div className="text-xs px-2 py-1 rounded-lg"
+                    style={{ background: 'rgba(91,156,246,0.1)', color: 'var(--skill-move)' }}>
+                    ✦ 霞歩: {pieceState.mistStepUses}回残り
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div className="p-6 flex flex-col items-center justify-center text-center gap-2" style={{ minHeight: '140px' }}>
+            <span className="text-2xl" style={{ color: 'var(--text-3)' }}>♟</span>
+            <p className="text-xs" style={{ color: 'var(--text-3)' }}>駒をクリックして詳細表示</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

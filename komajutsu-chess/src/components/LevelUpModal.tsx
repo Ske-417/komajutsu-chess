@@ -6,33 +6,41 @@ export default function LevelUpModal() {
   const levelUpChoice = useGameStore(s => s.levelUpChoice);
 
   if (!pendingLevelUp) return null;
-
   if (pendingLevelUp.choices.length === 0) {
-    // Auto level up happened, dismiss
     levelUpChoice('');
     return null;
   }
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl border border-yellow-500">
-        <div className="text-center mb-4">
-          <div className="text-3xl mb-2">⬆️</div>
-          <h2 className="text-xl font-bold text-yellow-400">レベルアップ！</h2>
-          <p className="text-sm text-gray-400 mt-1">レベルアップするスキルを選んでください</p>
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
+      style={{ background: 'rgba(8,8,18,0.80)', backdropFilter: 'blur(6px)' }}>
+      <div className="w-full max-w-sm rounded-2xl overflow-hidden"
+        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-accent)', boxShadow: '0 0 40px rgba(228,184,75,0.12)' }}>
+
+        {/* Header */}
+        <div className="px-5 py-4 text-center" style={{ borderBottom: '1px solid var(--border)' }}>
+          <div className="text-2xl mb-2" style={{ color: 'var(--accent)' }}>▲</div>
+          <h2 className="text-lg font-bold" style={{ color: 'var(--accent)' }}>Level Up</h2>
+          <p className="text-xs mt-1" style={{ color: 'var(--text-2)' }}>
+            レベルアップするスキルを選んでください
+          </p>
         </div>
 
-        <div className="space-y-3">
+        <div className="p-4 space-y-3">
           {pendingLevelUp.choices.map((skill, i) => (
-            <div
-              key={i}
-              className="cursor-pointer rounded-xl transition-all hover:scale-102 hover:ring-2 hover:ring-yellow-400"
-              onClick={() => levelUpChoice(skill.id)}
-            >
-              <SkillCard skill={skill} />
-              <div className="text-center text-xs text-yellow-400 mt-1">
-                → Lv{Math.min(3, skill.level + 1)}にアップ
+            <div key={i}>
+              <div
+                className="cursor-pointer rounded-xl transition-all hover:scale-[1.01]"
+                onClick={() => levelUpChoice(skill.id)}
+                onMouseEnter={e => (e.currentTarget.style.outline = '2px solid var(--accent)')}
+                onMouseLeave={e => (e.currentTarget.style.outline = 'none')}
+                style={{ outline: 'none' }}
+              >
+                <SkillCard skill={skill} />
               </div>
+              <p className="text-xs text-center mt-1" style={{ color: 'var(--accent)' }}>
+                → Lv{Math.min(3, skill.level + 1)} にアップ
+              </p>
             </div>
           ))}
         </div>
