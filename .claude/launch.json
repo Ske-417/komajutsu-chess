@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "komajutsu-chess",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "komajutsu-chess", "run", "dev"],
+      "port": 5173
+    }
+  ]
+}
