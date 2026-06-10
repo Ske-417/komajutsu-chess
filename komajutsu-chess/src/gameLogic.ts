@@ -176,6 +176,30 @@ export function getPieceKey(type: PieceType, colIndex: number, color: Color): st
   return `${type}-${colIndex}-${color}`;
 }
 
+// Advance the chess.js turn without a standard move (for armor blocks, skill activations, etc.)
+export function flipChessTurn(chess: Chess): void {
+  const parts = chess.fen().split(' ');
+  parts[1] = parts[1] === 'w' ? 'b' : 'w';
+  parts[3] = '-'; // reset en passant
+  parts[4] = String(parseInt(parts[4]) + 1);
+  if (parts[1] === 'w') parts[5] = String(parseInt(parts[5]) + 1);
+  chess.load(parts.join(' '));
+}
+
+// Active skills that require player interaction to trigger
+export const ACTIVE_SKILL_IDS = new Set([
+  'mist-step', 'bind', 'shield-wall', 'curse-mark', 'phantom', 'shadow-clone',
+]);
+
+export const ACTIVE_SKILL_LABELS: Record<string, string> = {
+  'mist-step': '霞歩を使用（空きマスへワープ）',
+  'bind': '呪縛を使用（隣接敵を拘束）',
+  'shield-wall': '盾壁を使用（隣接味方を保護）',
+  'curse-mark': '呪印を使用（敵に印をつける）',
+  'phantom': '幻影を使用（隣接コピーを生成）',
+  'shadow-clone': '影分身を使用（コピーを生成）',
+};
+
 export function getPiecesOnBoard(chess: Chess): Array<{ sq: Square; type: PieceType; color: Color; colIndex: number }> {
   const result = [];
   const board = chess.board();

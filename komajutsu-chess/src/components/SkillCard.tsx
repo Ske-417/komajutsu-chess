@@ -46,13 +46,12 @@ export default function SkillCard({ skill, selected, onClick, compact, disabled 
       className="rounded-xl overflow-hidden select-none transition-all duration-150"
       style={{
         background: 'var(--bg-elevated)',
-        border: selected
-          ? `2px solid var(--accent)`
-          : `1px solid color-mix(in srgb, ${color} 30%, var(--border))`,
+        border: `1px solid color-mix(in srgb, ${color} 30%, var(--border))`,
         opacity: disabled ? 0.45 : 1,
         cursor: disabled ? 'not-allowed' : onClick ? 'pointer' : 'default',
-        transform: selected ? 'scale(1.02)' : undefined,
-        boxShadow: selected ? '0 0 16px rgba(228,184,75,0.2)' : undefined,
+        boxShadow: selected
+          ? '0 0 0 2px var(--accent), 0 0 16px rgba(228,184,75,0.18)'
+          : 'none',
       }}
     >
       {/* Header band */}

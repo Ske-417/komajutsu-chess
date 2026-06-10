@@ -61,6 +61,10 @@ export interface GameState {
     square: Square;
     choices: Skill[];
   } | null;
+  pendingSkillActivation: {
+    pieceSquare: Square;
+    skillId: string;
+  } | null;
   statusMessage: string;
   selectedSquare: Square | null;
   revivingPieces: Array<{ pieceState: PieceState; square: Square; turnsLeft: number }>;

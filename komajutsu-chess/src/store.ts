@@ -6,7 +6,7 @@ import type {
 import {
   buildInitialPieces, buildInitialGems, createDeck, dealHands,
   addExp, applyDraftAssignmentsToPieces, getAdjacentSquares, getRandomSkillByCategory, getRandomSkillAny,
-  getPieceKey,
+  getPieceKey, flipChessTurn, ACTIVE_SKILL_IDS,
 } from './gameLogic';
 import { GEM_EXP, PIECE_MAX_SLOTS } from './constants';
 import { getBotMove, botDraftPick, botAssignSkills } from './botAI';
@@ -28,6 +28,9 @@ interface StoreActions {
   levelUpChoice: (skillId: string) => void;
   setSelectedSquare: (sq: Square | null) => void;
   resetGame: () => void;
+  startSkillActivation: (skillId: string) => void;
+  cancelSkillActivation: () => void;
+  executeSkillTarget: (targetSquare: Square) => void;
 }
 
 type StoreState = GameState & StoreActions & BotMethods & { chess: Chess };
@@ -55,6 +58,7 @@ const emptyGameState: GameState = {
   },
   pendingAbsorb: null,
   pendingLevelUp: null,
+  pendingSkillActivation: null,
   statusMessage: '',
   selectedSquare: null,
   revivingPieces: [],
@@ -115,9 +119,13 @@ export const useGameStore = create<StoreState>((set, get) => ({
     if (color === state.botColor) return;
 
     const picks = color === 'white' ? state.draft.whitePicks : state.draft.blackPicks;
-    if (picks.length >= 5) return;
 
-    const newPicks = [...picks, skill];
+    // Toggle: already picked → remove it
+    const isAlreadyPicked = picks.includes(skill);
+    const newPicks = isAlreadyPicked
+      ? picks.filter(p => p !== skill)
+      : picks.length >= 5 ? picks : [...picks, skill];
+
     set((s) => ({
       draft: {
         ...s.draft,
@@ -239,7 +247,7 @@ export const useGameStore = create<StoreState>((set, get) => ({
     const victimPiece = chess.get(to as any);
     const victimState = state.pieces.get(to);
 
-    // Armor check
+    // Armor check — blocks capture but still advances the turn
     if (victimState?.armorCharges && victimState.armorCharges > 0) {
       const newPieces = new Map(state.pieces);
       const newCharges = victimState.armorCharges - 1;
@@ -249,8 +257,20 @@ export const useGameStore = create<StoreState>((set, get) => ({
       } else {
         newPieces.set(to, { ...victimState, armorCharges: newCharges });
       }
-      set(() => ({ pieces: newPieces, statusMessage: '鎧スキルが攻撃を防いだ！', selectedSquare: null }));
-      return false;
+      // Flip turn so the attacker consumes their move
+      flipChessTurn(chess);
+      const nextTurn: Color = chess.turn() === 'w' ? 'white' : 'black';
+      set(() => ({
+        pieces: newPieces,
+        currentTurn: nextTurn,
+        turnNumber: state.turnNumber + 1,
+        statusMessage: '🛡 鎧スキルが攻撃を防いだ！',
+        selectedSquare: null,
+      }));
+      if (state.botColor === nextTurn) {
+        setTimeout(() => get().doBotMove(), 600);
+      }
+      return true;
     }
 
     let move;
