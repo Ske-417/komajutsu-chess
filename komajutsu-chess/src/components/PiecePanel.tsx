@@ -1,6 +1,7 @@
 import { useGameStore } from '../store';
 import type { PieceType, Color } from '../types';
 import SkillCard from './SkillCard';
+import { ACTIVE_SKILL_IDS } from '../gameLogic';
 
 const PIECE_LABELS: Record<PieceType, string> = {
   p: 'ポーン', n: 'ナイト', b: 'ビショップ', r: 'ルーク', q: 'クイーン', k: 'キング',
@@ -16,8 +17,15 @@ export default function PiecePanel() {
   const statusMessage = useGameStore(s => s.statusMessage);
   const turnNumber = useGameStore(s => s.turnNumber);
 
+  const pendingSkillActivation = useGameStore(s => s.pendingSkillActivation);
+  const startSkillActivation = useGameStore(s => s.startSkillActivation);
+  const cancelSkillActivation = useGameStore(s => s.cancelSkillActivation);
+
   const humanColor = botColor === 'white' ? 'black' : 'white';
   const pieceState = selectedSquare ? pieces.get(selectedSquare) : null;
+  const isMyPiece = pieceState?.color === humanColor;
+  const isMyTurn = currentTurn === humanColor;
+  const canUseSkill = isMyPiece && isMyTurn && !pendingSkillActivation;
 
   const expThreshold = pieceState ? (pieceState.level === 1 ? 10 : 30) : 10;
   const expBase = pieceState ? (pieceState.level === 1 ? 0 : pieceState.level === 2 ? 10 : 30) : 0;
@@ -99,10 +107,60 @@ export default function PiecePanel() {
                 style={{ color: 'var(--text-3)' }}>
                 スキル {pieceState.skills.length}/{pieceState.maxSlots}
               </p>
+
+              {/* Skill activation mode banner */}
+              {pendingSkillActivation && selectedSquare === pendingSkillActivation.pieceSquare && (
+                <div className="mb-2 rounded-lg px-3 py-2 flex items-center justify-between"
+                  style={{ background: 'rgba(184,125,232,0.12)', border: '1px solid rgba(184,125,232,0.3)' }}>
+                  <span className="text-xs" style={{ color: 'var(--skill-curse)' }}>対象マスをクリック</span>
+                  <button onClick={cancelSkillActivation}
+                    className="text-xs px-2 py-0.5 rounded"
+                    style={{ color: 'var(--text-3)', border: '1px solid var(--border)' }}>
+                    キャンセル
+                  </button>
+                </div>
+              )}
+
               <div className="space-y-2">
-                {pieceState.skills.map((skill, i) => (
-                  <SkillCard key={i} skill={skill} />
-                ))}
+                {pieceState.skills.map((skill, i) => {
+                  const isActive = ACTIVE_SKILL_IDS.has(skill.id);
+                  const isActivating = pendingSkillActivation?.skillId === skill.id;
+                  const usesLeft = skill.id === 'mist-step' ? (pieceState.mistStepUses ?? 0) : null;
+                  const hasUses = usesLeft === null || usesLeft > 0;
+                  return (
+                    <div key={i}>
+                      <SkillCard skill={skill} />
+                      {isActive && (
+                        <button
+                          onClick={() => isActivating ? cancelSkillActivation() : startSkillActivation(skill.id)}
+                          disabled={!isActivating && (!canUseSkill || !hasUses)}
+                          className="mt-1 w-full py-1.5 rounded-lg text-xs font-semibold transition-all"
+                          style={isActivating ? {
+                            background: 'rgba(184,125,232,0.2)',
+                            color: 'var(--skill-curse)',
+                            border: '1px solid rgba(184,125,232,0.5)',
+                          } : (canUseSkill && hasUses) ? {
+                            background: 'rgba(228,184,75,0.1)',
+                            color: 'var(--accent)',
+                            border: '1px solid var(--border-accent)',
+                            cursor: 'pointer',
+                          } : {
+                            background: 'var(--bg-elevated)',
+                            color: 'var(--text-3)',
+                            border: '1px solid var(--border)',
+                            cursor: 'not-allowed',
+                          }}
+                        >
+                          {isActivating
+                            ? 'キャンセル'
+                            : usesLeft !== null
+                              ? `使用する（残${usesLeft}回）`
+                              : '使用する'}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               {Array(pieceState.maxSlots - pieceState.skills.length).fill(0).map((_, i) => (
                 <div key={i} className="mt-2 rounded-xl p-3 text-center text-xs"

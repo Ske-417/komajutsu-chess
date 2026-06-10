@@ -93,6 +93,7 @@ export const useGameStore = create<StoreState>((set, get) => ({
       selectedSquare: null,
       pendingAbsorb: null,
       pendingLevelUp: null,
+      pendingSkillActivation: null,
       revivingPieces: [],
       statusMessage: 'ドラフトフェーズ: スキルを5枚選んでください',
       draft: {
@@ -567,4 +568,148 @@ export const useGameStore = create<StoreState>((set, get) => ({
 
     get().makeMove(move.from as Square, move.to as Square);
   },
+
+  startSkillActivation: (skillId) => {
+    const state = get();
+    if (state.phase !== 'playing') return;
+    if (state.pendingAbsorb || state.pendingLevelUp || state.pendingSkillActivation) return;
+    const humanColor: Color = state.botColor === 'white' ? 'black' : 'white';
+    if (state.currentTurn !== humanColor) return;
+    if (!state.selectedSquare) return;
+
+    const skill = state.pieces.get(state.selectedSquare)?.skills.find(s => s.id === skillId);
+    if (!skill) return;
+
+    // Check usage limits
+    if (skillId === 'mist-step') {
+      const uses = state.pieces.get(state.selectedSquare)?.mistStepUses ?? 0;
+      if (uses <= 0) { set(() => ({ statusMessage: '霞歩の使用回数が残っていません' })); return; }
+    }
+
+    const hints: Record<string, string> = {
+      'mist-step': '霞歩: ワープ先のマスをクリック',
+      'bind': '呪縛: 隣接する敵駒をクリック',
+      'shield-wall': '盾壁: 任意のマスをクリックして発動',
+      'curse-mark': '呪印: 呪いをかける敵駒をクリック',
+      'phantom': '幻影: 隣接する空きマスをクリック',
+      'shadow-clone': '影分身: 隣接する空きマスをクリック',
+    };
+    set(() => ({
+      pendingSkillActivation: { pieceSquare: state.selectedSquare!, skillId },
+      statusMessage: hints[skillId] ?? 'スキル発動中',
+    }));
+  },
+
+  cancelSkillActivation: () => {
+    set(() => ({ pendingSkillActivation: null, statusMessage: '' }));
+  },
+
+  executeSkillTarget: (targetSquare) => {
+    const state = get();
+    if (!state.pendingSkillActivation) return;
+    const { pieceSquare, skillId } = state.pendingSkillActivation;
+    const chess = state.chess;
+    const piece = state.pieces.get(pieceSquare);
+    const chessPiece = chess.get(pieceSquare as any);
+    if (!piece || !chessPiece) return;
+
+    const chessColor = piece.color === 'white' ? 'w' : 'b';
+    const newPieces = new Map(state.pieces);
+    let success = false;
+    let msg = '';
+
+    if (skillId === 'mist-step') {
+      const skill = piece.skills.find(s => s.id === 'mist-step');
+      const uses = piece.mistStepUses ?? 0;
+      if (!skill || uses <= 0) return;
+      const targetChessPiece = chess.get(targetSquare as any);
+      const canTargetEnemy = skill.level >= 3;
+      const isEmpty = !targetChessPiece;
+      const isEnemy = targetChessPiece && targetChessPiece.color !== chessColor;
+      if (targetSquare !== pieceSquare && (isEmpty || (canTargetEnemy && isEnemy))) {
+        chess.remove(pieceSquare as any);
+        if (isEnemy) { chess.remove(targetSquare as any); newPieces.delete(targetSquare); }
+        chess.put({ type: chessPiece.type, color: chessPiece.color }, targetSquare as any);
+        newPieces.delete(pieceSquare);
+        newPieces.set(targetSquare, { ...piece, mistStepUses: uses - 1 });
+        flipChessTurn(chess);
+        success = true; msg = '✦ 霞歩で瞬間移動！';
+      }
+    }
+
+    else if (skillId === 'bind') {
+      const skill = piece.skills.find(s => s.id === 'bind');
+      if (!skill) return;
+      const adj = getAdjacentSquares(pieceSquare);
+      const targetPiece = state.pieces.get(targetSquare);
+      const targetChess = chess.get(targetSquare as any);
+      if (adj.includes(targetSquare) && targetPiece && targetChess && targetChess.color !== chessColor) {
+        const turns = skill.level === 1 ? 2 : skill.level === 2 ? 3 : 3;
+        newPieces.set(targetSquare, { ...targetPiece, isBound: true, boundTurns: turns });
+        flipChessTurn(chess);
+        success = true; msg = `⛓ ${targetPiece.type.toUpperCase()}を${turns}ターン拘束！`;
+      }
+    }
+
+    else if (skillId === 'curse-mark') {
+      const targetPiece = state.pieces.get(targetSquare);
+      const targetChess = chess.get(targetSquare as any);
+      if (targetPiece && targetChess && targetChess.color !== chessColor) {
+        // Apply curse: next moves will degrade skills (handled in makeMove)
+        newPieces.set(targetSquare, { ...targetPiece, isBound: false, boundTurns: 0 });
+        flipChessTurn(chess);
+        success = true; msg = '呪印を付与した！';
+      }
+    }
+
+    else if (skillId === 'shield-wall') {
+      // Protect adjacent allies (give them 1 virtual armor charge via shielded field)
+      const adj = getAdjacentSquares(pieceSquare);
+      const skill = piece.skills.find(s => s.id === 'shield-wall');
+      if (!skill) return;
+      let count = 0;
+      for (const sq of adj) {
+        const ally = newPieces.get(sq);
+        const allyChess = chess.get(sq as any);
+        if (ally && allyChess && allyChess.color === chessColor) {
+          const charges = skill.level === 3 ? 999 : skill.level;
+          newPieces.set(sq, { ...ally, armorCharges: (ally.armorCharges ?? 0) + charges });
+          count++;
+        }
+      }
+      flipChessTurn(chess);
+      success = true; msg = `盾壁: ${count}体の駒を保護！`;
+    }
+
+    else if (skillId === 'phantom' || skillId === 'shadow-clone') {
+      const targetChessPiece = chess.get(targetSquare as any);
+      const adj = getAdjacentSquares(pieceSquare);
+      if (adj.includes(targetSquare) && !targetChessPiece && !newPieces.get(targetSquare)) {
+        chess.put({ type: chessPiece.type, color: chessPiece.color }, targetSquare as any);
+        const skill = piece.skills.find(s => s.id === skillId);
+        const cloneSkills = (skill && skill.level >= 2) ? [...piece.skills] : [];
+        newPieces.set(targetSquare, { ...piece, isPhantom: true, skills: cloneSkills, experience: 0, level: 1 });
+        flipChessTurn(chess);
+        success = true; msg = `${skillId === 'phantom' ? '幻影' : '影分身'}を生成！`;
+      }
+    }
+
+    if (success) {
+      const nextTurn: Color = chess.turn() === 'w' ? 'white' : 'black';
+      set(() => ({
+        pieces: newPieces,
+        pendingSkillActivation: null,
+        currentTurn: nextTurn,
+        turnNumber: state.turnNumber + 1,
+        statusMessage: msg,
+        selectedSquare: null,
+      }));
+      if (state.botColor === nextTurn) {
+        setTimeout(() => get().doBotMove(), 600);
+      }
+    } else {
+      set(() => ({ statusMessage: 'そのマスには使用できません' }));
+    }
+  },
+
 }));

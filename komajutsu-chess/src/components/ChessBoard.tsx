@@ -3,6 +3,7 @@ import { Chessboard } from 'react-chessboard';
 import type { Square } from '../types';
 import { useGameStore } from '../store';
 import { CATEGORY_COLORS } from '../constants';
+import { getAdjacentSquares } from '../gameLogic';
 
 const GEM_COLORS: Record<string, string> = {
   blue: 'var(--skill-move)',
@@ -30,18 +31,77 @@ export default function ChessBoard() {
   const phase = useGameStore(s => s.phase);
   const pendingAbsorb = useGameStore(s => s.pendingAbsorb);
   const pendingLevelUp = useGameStore(s => s.pendingLevelUp);
+  const pendingSkillActivation = useGameStore(s => s.pendingSkillActivation);
+  const executeSkillTarget = useGameStore(s => s.executeSkillTarget);
+  const cancelSkillActivation = useGameStore(s => s.cancelSkillActivation);
 
   const humanColor = botColor === 'white' ? 'black' : 'white';
   const isHumanTurn = currentTurn === humanColor;
-  const canInteract = phase === 'playing' && isHumanTurn && !pendingAbsorb && !pendingLevelUp;
+  const isSkillMode = !!pendingSkillActivation;
+  const canInteract = phase === 'playing' && isHumanTurn && !pendingAbsorb && !pendingLevelUp && !isSkillMode;
 
   const legalMoves = useMemo(() => {
     if (!selectedSquare || !canInteract) return [];
     return chess.moves({ square: selectedSquare as any, verbose: true }).map(m => m.to);
   }, [selectedSquare, chess, canInteract]);
 
+  // Highlight valid targets when in skill activation mode
+  const skillTargetSquares = useMemo(() => {
+    if (!isSkillMode || !pendingSkillActivation) return new Set<string>();
+    const { pieceSquare, skillId } = pendingSkillActivation;
+    const piece = pieces.get(pieceSquare);
+    if (!piece) return new Set<string>();
+    const chessColor = piece.color === 'white' ? 'w' : 'b';
+    const targets = new Set<string>();
+
+    if (skillId === 'mist-step') {
+      const skill = piece.skills.find(s => s.id === 'mist-step');
+      for (let f = 0; f < 8; f++) {
+        for (let r = 1; r <= 8; r++) {
+          const sq = String.fromCharCode('a'.charCodeAt(0) + f) + r;
+          const p = chess.get(sq as any);
+          if (!p) targets.add(sq);
+          else if (skill && skill.level >= 3 && p.color !== chessColor) targets.add(sq);
+        }
+      }
+    } else if (skillId === 'bind' || skillId === 'phantom' || skillId === 'shadow-clone') {
+      const adj = getAdjacentSquares(pieceSquare);
+      for (const sq of adj) {
+        const p = chess.get(sq as any);
+        if (skillId === 'bind' && p && p.color !== chessColor) targets.add(sq);
+        if ((skillId === 'phantom' || skillId === 'shadow-clone') && !p) targets.add(sq);
+      }
+    } else if (skillId === 'curse-mark') {
+      for (let f = 0; f < 8; f++) {
+        for (let r = 1; r <= 8; r++) {
+          const sq = String.fromCharCode('a'.charCodeAt(0) + f) + r;
+          const p = chess.get(sq as any);
+          if (p && p.color !== chessColor) targets.add(sq);
+        }
+      }
+    } else if (skillId === 'shield-wall') {
+      // Any square triggers it (auto-applies)
+      targets.add(pieceSquare);
+    }
+    return targets;
+  }, [isSkillMode, pendingSkillActivation, pieces, chess]);
+
   const squareStyles = useMemo(() => {
     const styles: Record<string, React.CSSProperties> = {};
+
+    if (isSkillMode && pendingSkillActivation) {
+      styles[pendingSkillActivation.pieceSquare] = { backgroundColor: 'rgba(228,184,75,0.45)' };
+      for (const sq of skillTargetSquares) {
+        const hasPiece = chess.get(sq as any);
+        styles[sq] = {
+          background: hasPiece
+            ? 'radial-gradient(circle, rgba(184,125,232,0.65) 0%, transparent 65%)'
+            : 'radial-gradient(circle, rgba(184,125,232,0.4) 22%, transparent 70%)',
+        };
+      }
+      return styles;
+    }
+
     if (selectedSquare) {
       styles[selectedSquare] = { backgroundColor: 'rgba(228,184,75,0.35)' };
     }
@@ -54,9 +114,17 @@ export default function ChessBoard() {
       };
     }
     return styles;
-  }, [selectedSquare, legalMoves, chess]);
+  }, [selectedSquare, legalMoves, chess, isSkillMode, pendingSkillActivation, skillTargetSquares]);
 
   const onSquareClick = useCallback(({ square }: { square: string; piece: unknown }) => {
+    if (isSkillMode) {
+      if (skillTargetSquares.has(square) || pendingSkillActivation?.skillId === 'shield-wall') {
+        executeSkillTarget(square as Square);
+      } else {
+        cancelSkillActivation();
+      }
+      return;
+    }
     if (!canInteract) return;
     const sq = square as Square;
     if (selectedSquare && (legalMoves as string[]).includes(square)) {
@@ -70,7 +138,8 @@ export default function ChessBoard() {
     } else {
       setSelectedSquare(null);
     }
-  }, [canInteract, selectedSquare, legalMoves, makeMove, chess, humanColor, setSelectedSquare]);
+  }, [isSkillMode, skillTargetSquares, pendingSkillActivation, executeSkillTarget, cancelSkillActivation,
+      canInteract, selectedSquare, legalMoves, makeMove, chess, humanColor, setSelectedSquare]);
 
   const onPieceDrop = useCallback(({ sourceSquare, targetSquare }: { piece: unknown; sourceSquare: string; targetSquare: string | null }) => {
     if (!canInteract || !targetSquare) return false;
