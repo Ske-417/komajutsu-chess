@@ -1,16 +1,99 @@
 @import "tailwindcss";
 
 @layer base {
+  :root {
+    --bg-base: #080812;
+    --bg-surface: #0f1020;
+    --bg-elevated: #161730;
+    --bg-hover: #1e2040;
+    --border: rgba(255, 255, 255, 0.07);
+    --border-accent: rgba(228, 184, 75, 0.35);
+    --accent: #e4b84b;
+    --accent-hover: #f0ca68;
+    --accent-dim: rgba(228, 184, 75, 0.15);
+    --text-1: #eeeef8;
+    --text-2: #9090b8;
+    --text-3: #55557a;
+    --skill-move: #5b9cf6;
+    --skill-combat: #f07070;
+    --skill-curse: #b87de8;
+    --skill-defense: #3dc9b4;
+  }
+
   * {
     box-sizing: border-box;
   }
+
   body {
-    background-color: #111827;
-    color: white;
-    font-family: 'Segoe UI', sans-serif;
+    background-color: var(--bg-base);
+    color: var(--text-1);
+    font-family: 'Inter', 'Noto Sans JP', 'Segoe UI', sans-serif;
     margin: 0;
+    -webkit-font-smoothing: antialiased;
   }
+
   #root {
     min-height: 100vh;
+  }
+}
+
+@layer utilities {
+  .surface {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border);
+  }
+
+  .surface-elevated {
+    background-color: var(--bg-elevated);
+    border: 1px solid var(--border);
+  }
+
+  .accent-border {
+    border-color: var(--border-accent);
+  }
+
+  .text-muted {
+    color: var(--text-2);
+  }
+
+  .text-faint {
+    color: var(--text-3);
+  }
+
+  .btn-primary {
+    background-color: var(--accent);
+    color: #0a0a14;
+    font-weight: 700;
+    border-radius: 0.75rem;
+    transition: background-color 0.15s, transform 0.1s;
+  }
+
+  .btn-primary:hover {
+    background-color: var(--accent-hover);
+    transform: translateY(-1px);
+  }
+
+  .btn-ghost {
+    background-color: transparent;
+    color: var(--text-2);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    transition: background-color 0.15s, color 0.15s;
+  }
+
+  .btn-ghost:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-1);
+  }
+
+  .glow-gold {
+    box-shadow: 0 0 20px rgba(228, 184, 75, 0.2);
+  }
+
+  .chess-grid-bg {
+    background-image:
+      linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+    background-size: 40px 40px;
   }
 }
